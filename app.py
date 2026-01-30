@@ -21,8 +21,9 @@ wiki_wiki = wikipediaapi.Wikipedia(
     user_agent='WordSalad/1.0 (https://github.com/sri-nivas1227/WordSalad)'
 )
 
-# Initialize OpenAI client
-client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+# Initialize OpenAI client (will be None if API key is not set)
+api_key = os.getenv('OPENAI_API_KEY')
+client = OpenAI(api_key=api_key) if api_key else None
 
 
 def parse_input(input_str):
@@ -78,6 +79,9 @@ def generate_paragraph_with_llm(topic, word_count, context=None):
     Returns:
         str: Generated paragraph
     """
+    if not client:
+        raise Exception("OpenAI API key not configured. Please set OPENAI_API_KEY in .env file")
+    
     try:
         # Build prompt based on whether we have Wikipedia context
         if context:
