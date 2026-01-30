@@ -5,10 +5,18 @@ Generates paragraphs based on topic and word count using Wikipedia and LLM
 
 import os
 import re
+import logging
 from flask import Flask, jsonify, request
 import wikipediaapi
 from openai import OpenAI
 from dotenv import load_dotenv
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 # Load environment variables
 load_dotenv()
@@ -41,6 +49,9 @@ def parse_input(input_str):
     if match:
         topic = match.group(1).strip()
         word_count = int(match.group(2))
+        # Ensure topic is not empty after stripping
+        if not topic:
+            return None, None
         return topic, word_count
     return None, None
 
@@ -63,7 +74,7 @@ def get_wikipedia_summary(topic):
             return summary
         return None
     except Exception as e:
-        print(f"Wikipedia API error: {e}")
+        logger.error(f"Wikipedia API error for topic '{topic}': {e}")
         return None
 
 
@@ -109,7 +120,7 @@ The paragraph should be factual and well-written."""
         return paragraph
     
     except Exception as e:
-        print(f"LLM generation error: {e}")
+        logger.error(f"LLM generation error for topic '{topic}': {e}")
         raise
 
 
@@ -166,9 +177,10 @@ def generate():
         }), 200
     
     except Exception as e:
+        logger.error(f"Error generating paragraph: {e}")
         return jsonify({
-            'error': 'Internal server error',
-            'message': str(e)
+            'error': 'Failed to generate paragraph. Please try again.',
+            'details': 'Internal server error occurred'
         }), 500
 
 
@@ -207,7 +219,10 @@ def home():
 if __name__ == '__main__':
     # Check if OpenAI API key is set
     if not os.getenv('OPENAI_API_KEY'):
-        print("WARNING: OPENAI_API_KEY not set in environment variables")
-        print("Please create a .env file with your OpenAI API key")
+        logger.warning("OPENAI_API_KEY not set in environment variables")
+        logger.warning("Please create a .env file with your OpenAI API key")
     
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    # Get debug mode from environment variable, default to False for security
+    debug_mode = os.getenv('FLASK_DEBUG', 'False').lower() in ('true', '1', 't')
+    
+    app.run(debug=debug_mode, host='0.0.0.0', port=5000)
